@@ -302,48 +302,102 @@ function Panel({ title, children }) {
 
 function ThicknessTimeChart({ data }) {
   return (
-    <Chart data={data}>
-      <Line type="monotone" dataKey="center" name="Center" stroke="#60a5fa" dot={false} strokeWidth={3} />
-      <Line type="monotone" dataKey="mid" name="Mid-radius" stroke="#3b82f6" dot={false} strokeDasharray="6 6" />
-      <Line type="monotone" dataKey="edge" name="Edge bead" stroke="#ef4444" dot={false} strokeWidth={3} />
+    <Chart
+      data={data}
+      xKey="t"
+      xLabel="시간 t (s)"
+      yLabel="포토레지스트 두께 h (μm)"
+    >
+      <Line type="monotone" dataKey="center" name="Center, r=0" stroke="#60a5fa" dot={false} strokeWidth={3} />
+      <Line type="monotone" dataKey="mid" name="Mid-radius, r=R/2" stroke="#3b82f6" dot={false} strokeDasharray="6 6" />
+      <Line type="monotone" dataKey="edge" name="Edge bead, r=R" stroke="#ef4444" dot={false} strokeWidth={3} />
     </Chart>
   );
 }
 
 function RadialChart({ data }) {
   return (
-    <Chart data={data} xKey="r">
-      <Line type="monotone" dataKey="h" name="Radial thickness" stroke="#ef4444" dot={false} strokeWidth={3} />
+    <Chart
+      data={data}
+      xKey="r"
+      xLabel="웨이퍼 반지름 방향 위치 r (mm)"
+      yLabel="최종 막 두께 h(r) (μm)"
+    >
+      <Line type="monotone" dataKey="h" name="Final radial thickness h(r)" stroke="#ef4444" dot={false} strokeWidth={3} />
     </Chart>
   );
 }
 
 function ValidationChart({ data }) {
   return (
-    <Chart data={data}>
-      <Line type="monotone" dataKey="center" name="Numerical Meyerhofer" stroke="#ef4444" dot={false} strokeWidth={3} />
-      <Line type="monotone" dataKey="ebp" name="EBP analytical" stroke="#60a5fa" dot={false} strokeDasharray="6 6" />
+    <Chart
+      data={data}
+      xKey="t"
+      xLabel="시간 t (s)"
+      yLabel="막 두께 h(t) (μm)"
+    >
+      <Line type="monotone" dataKey="center" name="Numerical Meyerhofer model" stroke="#ef4444" dot={false} strokeWidth={3} />
+      <Line type="monotone" dataKey="ebp" name="EBP analytical solution" stroke="#60a5fa" dot={false} strokeDasharray="6 6" />
     </Chart>
   );
 }
 
 function ViscosityChart({ data }) {
   return (
-    <Chart data={data}>
-      <Line type="monotone" dataKey="eta" name="η(t)" stroke="#22c55e" dot={false} strokeWidth={3} />
+    <Chart
+      data={data}
+      xKey="t"
+      xLabel="시간 t (s)"
+      yLabel="점도 η(t) (Pa·s)"
+    >
+      <Line type="monotone" dataKey="eta" name="η(t)=η₀eᵏᵗ" stroke="#22c55e" dot={false} strokeWidth={3} />
     </Chart>
   );
 }
 
-function Chart({ data, children, xKey = "t" }) {
+function Chart({
+  data,
+  children,
+  xKey = "t",
+  xLabel = "시간 t (s)",
+  yLabel = "두께 h (μm)"
+}) {
   return (
     <ResponsiveContainer width="100%" height={380}>
-      <LineChart data={data}>
+      <LineChart data={data} margin={{ top: 20, right: 35, left: 35, bottom: 35 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#2a3442" />
-        <XAxis dataKey={xKey} stroke="#cbd5e1" />
-        <YAxis stroke="#cbd5e1" />
-        <Tooltip contentStyle={{ background: "#111827", border: "1px solid #334155" }} />
-        <Legend />
+
+        <XAxis
+          dataKey={xKey}
+          stroke="#cbd5e1"
+          label={{
+            value: xLabel,
+            position: "insideBottom",
+            offset: -20,
+            fill: "#cbd5e1"
+          }}
+        />
+
+        <YAxis
+          stroke="#cbd5e1"
+          label={{
+            value: yLabel,
+            angle: -90,
+            position: "insideLeft",
+            offset: -15,
+            fill: "#cbd5e1"
+          }}
+        />
+
+        <Tooltip
+          contentStyle={{
+            background: "#111827",
+            border: "1px solid #334155",
+            color: "#f8fafc"
+          }}
+        />
+
+        <Legend verticalAlign="top" height={36} />
         {children}
       </LineChart>
     </ResponsiveContainer>
