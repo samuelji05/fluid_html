@@ -15,10 +15,10 @@ body {
 }
 
 .sidebar {
-  width: 310px;
+  width: 240px;
   background: #151b27;
   border-right: 1px solid #263244;
-  padding: 24px 18px;
+  padding: 18px 14px;
   position: fixed;
   left: 0;
   top: 0;
@@ -27,23 +27,25 @@ body {
 }
 
 .sidebar h2 {
-  font-size: 20px;
-  margin-bottom: 28px;
+  font-size: 17px;
+  margin-bottom: 18px;
 }
 
 .slider {
-  margin-bottom: 24px;
+  margin-bottom: 15px;
 }
 
 .slider-top {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
-  margin-bottom: 8px;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 5px;
 }
 
 .slider-top b {
   color: #ff5a5f;
+  font-size: 12px;
 }
 
 .slider input {
@@ -51,76 +53,37 @@ body {
   accent-color: #ff4d55;
 }
 
-.range {
-  display: flex;
-  justify-content: space-between;
-  color: #9ca3af;
-}
-
-.preset-box {
-  margin-top: 24px;
-  padding: 16px;
-  border-radius: 12px;
-  background: #111827;
-  border: 1px solid #263244;
-}
-
-.preset-box h3 {
-  margin-top: 0;
-  font-size: 15px;
-}
-
-.preset-box button {
-  margin: 4px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-}
-
-.preset-box button:nth-child(2) {
-  background: #2563eb;
-}
-
-.preset-box button:nth-child(3) {
-  background: #dc2626;
-}
-
-.preset-box button:nth-child(4) {
-  background: #16a34a;
-}
-
 .main {
-  margin-left: 310px;
-  padding: 36px;
-  width: calc(100% - 310px);
+  margin-left: 240px;
+  padding: 32px;
+  width: calc(100% - 240px);
 }
 
 .header h1 {
   font-size: 34px;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 }
 
 .header p {
   color: #cbd5e1;
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .tabs {
-  margin-top: 28px;
+  margin-top: 24px;
   border-bottom: 1px solid #263244;
-  padding-bottom: 0;
 }
 
-.tabs span {
-  display: inline-block;
-  padding: 12px 16px;
+.tabs button {
+  background: transparent;
+  border: 0;
   color: #cbd5e1;
+  padding: 12px 18px;
+  cursor: pointer;
   font-size: 14px;
 }
 
-.tabs .active {
+.tabs button.active {
   color: #ff4d55;
   border-bottom: 2px solid #ff4d55;
 }
@@ -128,26 +91,25 @@ body {
 .cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-  margin-top: 28px;
+  gap: 14px;
+  margin-top: 22px;
 }
 
 .card {
   background: linear-gradient(180deg, #172233, #111827);
   border: 1px solid #263244;
   border-radius: 14px;
-  padding: 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  padding: 18px;
 }
 
 .card p {
   color: #cbd5e1;
-  font-size: 14px;
-  margin: 0 0 10px;
+  font-size: 13px;
+  margin: 0 0 8px;
 }
 
 .card h2 {
-  font-size: 28px;
+  font-size: 25px;
   margin: 0;
 }
 
@@ -155,9 +117,9 @@ body {
   color: #ff6b6b;
 }
 
-.grid {
+.one-column {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 18px;
   margin-top: 24px;
 }
@@ -167,8 +129,7 @@ body {
   border: 1px solid #263244;
   border-radius: 14px;
   padding: 20px;
-  min-height: 390px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  min-height: 460px;
 }
 
 .panel h2 {
@@ -177,9 +138,54 @@ body {
   margin-bottom: 16px;
 }
 
+.challenge {
+  margin-top: 24px;
+  background: linear-gradient(180deg, #121c2b, #0f172a);
+  border: 1px solid #263244;
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.challenge p {
+  color: #cbd5e1;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 18px;
+  background: #111827;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+th, td {
+  padding: 14px;
+  border-bottom: 1px solid #263244;
+  text-align: center;
+}
+
+th {
+  background: #1f2937;
+  color: #f8fafc;
+}
+
+td {
+  color: #cbd5e1;
+}
+
+.no-result {
+  margin-top: 20px;
+  padding: 18px;
+  background: #3b1d1d;
+  border: 1px solid #ef4444;
+  border-radius: 12px;
+  color: #fecaca;
+}
+
 .footer {
   margin-top: 18px;
-  padding: 18px;
+  padding: 16px;
   background: #111827;
   border: 1px solid #263244;
   border-radius: 12px;
@@ -188,11 +194,10 @@ body {
   justify-content: space-between;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1000px) {
   .sidebar {
     position: static;
     width: 100%;
-    height: auto;
   }
 
   .app {
@@ -206,9 +211,5 @@ body {
 
   .cards {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
   }
 }
