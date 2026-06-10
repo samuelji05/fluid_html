@@ -142,13 +142,13 @@ export default function App() {
 
   const challenge = useMemo(() => findChallengeSolution(p), [p]);
 
-  const gelViscosity = Math.max(0.8, 4 * p.mu0);
+  const gelViscosity = 1.0;
 
   const tGel =
     p.mu0 >= gelViscosity
      ? 0
      :Math.min(
-        60,
+        100,
         (1 / Math.max(p.k, 0.001)) * Math.log(gelViscosity / p.mu0)
       );
 
