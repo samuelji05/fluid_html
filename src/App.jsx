@@ -236,7 +236,7 @@ export default function App() {
 
             {challenge.length === 0 ? (
               <div className="no-result">
-                조건을 만족하는 조합을 찾지 못했습니다. Edge Bead Factor를 낮추거나 증발률을 조정해보세요.
+                조건을 만족하는 조합을 찾지 못했습니다. 초기 두께, 증발률, 점도 증가율을 조정해보세요.
               </div>
             ) : (
               <table>
