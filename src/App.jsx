@@ -1,184 +1,236 @@
-import React, { useState, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useMemo, useState } from "react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer
+} from "recharts";
+import "./App.css";
 
-export default function SpinCoatingSimulator() {
-  // 1. 공정 변수 상태 관리 (보내주신 캡처 화면의 기본 설정값 반영)
-  const [omega, setOmega] = useState(3000);       
-  const [eta0, setEta0] = useState(0.08);         
-  const [h0, setH0] = useState(40);              
-  const [evapRate, setEvapRate] = useState(0.2);   
-  const [waferRadius, setWaferRadius] = useState(125); 
-  const [activeTab, setActiveTab] = useState('interactive'); 
+const rho = 1000; // kg/m3, PR solution approximate
 
-  // 2. 유체역학 수치해석 엔진 (Emslie-Bonner-Peck + Meyerhofer 알고리즘)
-  const simulationResults = useMemo(() => {
-    const dt = 0.05;       
-    const tMax = 40.0;     // 화면의 40초 스케일 반영
-    const rho = 1000.0;    
-    const omegaRad = omega * (2 * Math.PI / 60); 
-    const h0Meters = h0 * 1e-6; 
-    const evapMeters = evapRate * 1e-6; 
+function rpmToOmega(rpm) {
+  return (2 * Math.PI * rpm) / 60;
+}
 
-    const chartData = [];
-    let hCenter = h0Meters;
-    let hMid = h0Meters;
-    let hEdge = h0Meters;
-    let eta = eta0;
-    let tGel = tMax;
-    let isGelled = false;
+function viscosity(mu0, k, t) {
+  return mu0 * Math.exp(k * t);
+}
 
-    for (let t = 0; t <= tMax; t += dt) {
-      if (!isGelled) {
-        const dhRotCenter = - (2 * rho * Math.pow(omegaRad, 2) * Math.pow(hCenter, 3)) / (3 * eta);
-        const dhRotMid = - (2 * rho * Math.pow(omegaRad, 2) * Math.pow(hMid, 3)) / (3 * eta);
-        const dhRotEdge = - (2 * rho * Math.pow(omegaRad, 2) * Math.pow(hEdge, 3)) / (3 * eta);
+// dh/dt = -rho*w^2*h^3/(3*mu(t)) - E
+function dhdt(h, t, params) {
+  const { rpm, mu0, evap, k } = params;
+  const w = rpmToOmega(rpm);
+  const mu = viscosity(mu0, k, t);
+  return -(rho * w * w * Math.pow(h, 3)) / (3 * mu) - evap;
+}
 
-        hCenter += (dhRotCenter - evapMeters) * dt;
-        hMid += (dhRotMid - evapMeters) * dt;
-        hEdge += (dhRotEdge - evapMeters) * dt;
+function rk4Step(h, t, dt, params) {
+  const k1 = dhdt(h, t, params);
+  const k2 = dhdt(h + 0.5 * dt * k1, t + 0.5 * dt, params);
+  const k3 = dhdt(h + 0.5 * dt * k2, t + 0.5 * dt, params);
+  const k4 = dhdt(h + dt * k3, t + dt, params);
+  return Math.max(h + (dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4), 0);
+}
 
-        eta += eta0 * evapMeters * 50000 * dt;
+function ebpAnalytical(t, h0, rpm, mu0) {
+  const w = rpmToOmega(rpm);
+  return h0 / Math.sqrt(1 + (2 * rho * w * w * h0 * h0 * t) / (3 * mu0));
+}
 
-        if (eta >= 10.0 || hCenter <= 0) {
-          isGelled = true;
-          tGel = t;
-        }
-      }
+function simulate(params) {
+  const dt = 0.05;
+  const totalTime = 30;
+  const data = [];
 
-      // 화면의 드라마틱한 에지 비드(Edge Bead) 지수 곡선 스케일 맵핑 보정
-      const timeFactor = 1.0 - Math.exp(-t / 5);
-      const midFix = hMid * (1 + Math.pow(0.5, 4) * 0.15 * Math.pow(t/10, 2) * timeFactor);
-      const edgeFix = hEdge * (1 + Math.pow(1.0, 4) * 1.5 * Math.pow(t/10, 4) * timeFactor);
+  let h = params.h0 * 1e-6; // μm → m
+  const h0 = h;
 
-      chartData.push({
-        time: parseFloat(t.toFixed(1)),
-        center: parseFloat(Math.max(hCenter * 1e6, 0.005).toFixed(3)),
-        mid: parseFloat(Math.max(midFix * 1e6, 1.0).toFixed(3)),
-        edge: parseFloat(Math.max(edgeFix * 1e6, 1.0).toFixed(3)),
-        analytical: parseFloat(((h0Meters / Math.sqrt(1 + (4 * rho * Math.pow(omegaRad, 2) * Math.pow(h0Meters, 2) * t) / (3 * eta0)))) * 1e6).toFixed(3)
-      });
-    }
+  for (let t = 0; t <= totalTime; t += dt) {
+    const hEBP = ebpAnalytical(t, h0, params.rpm, params.mu0);
 
-    const finalRow = chartData[chartData.length - 1];
-    const maxH = Math.max(finalRow.center, finalRow.mid, finalRow.edge);
-    const minH = Math.min(finalRow.center, finalRow.mid, finalRow.edge);
-    const avgH = (finalRow.center + finalRow.mid + finalRow.edge) / 3;
-    const uniformity = ((maxH - minH) / (2 * avgH)) * 100;
+    data.push({
+      t: Number(t.toFixed(2)),
+      numerical: h * 1e6,
+      ebp: hEBP * 1e6,
+      viscosity: viscosity(params.mu0, params.k, t)
+    });
 
-    return { chartData, tGel, uniformity, finalRow };
-  }, [omega, eta0, h0, evapRate, waferRadius]);
+    h = rk4Step(h, t, dt, params);
+  }
 
-  // 3. 디자인 스타일 정의 객체 (Streamlit 테마 컬러 100% 매칭)
-  const styles = {
-    wrapper: { display: 'flex', minHeight: '100vh', backgroundColor: '#0e1117', color: '#fafafa', fontFamily: 'sans-serif' },
-    sidebar: { width: '300px', backgroundColor: '#131720', padding: '24px', borderRight: '1px solid #262730' },
-    sidebarTitle: { fontSize: '18px', fontWeight: 'bold', margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '8px' },
-    sliderGroup: { marginBottom: '24px' },
-    label: { display: 'block', fontSize: '13px', color: '#fafafa', marginBottom: '8px' },
-    value: { display: 'block', fontSize: '12px', color: '#ff4b4b', fontWeight: 'bold', marginTop: '4px' },
-    slider: { width: '100%', accentColor: '#ff4b4b', cursor: 'pointer' },
-    main: { flex: 1, padding: '40px', overflowY: 'auto' },
-    title: { fontSize: '28px', fontWeight: '700', margin: '0 0 10px 0' },
-    subtitle: { fontSize: '16px', color: '#b9b9b9', margin: '0 0 30px 0' },
-    tabBar: { display: 'flex', gap: '10px', borderBottom: '1px solid #262730', marginBottom: '30px' },
-    tabButton: (isActive) => ({
-      padding: '10px 15px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px',
-      color: isActive ? '#ff4b4b' : '#808495', borderBottom: isActive ? '2px solid #ff4b4b' : 'none', fontWeight: isActive ? 'bold' : 'normal'
-    }),
-    sectionTitle: { fontSize: '24px', fontWeight: 'bold', margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '10px' },
-    metricGroup: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '35px' },
-    metricBox: { backgroundColor: '#131720', padding: '20px', borderRadius: '8px', border: '1px solid #262730' },
-    metricLabel: { fontSize: '13px', color: '#808495', marginBottom: '8px' },
-    metricValue: { fontSize: '26px', fontWeight: 'bold', color: '#fafafa' },
-    chartContainer: { backgroundColor: '#131720', padding: '20px', borderRadius: '8px', border: '1px solid #262730', height: '400px' }
-  };
+  return data;
+}
+
+function radialProfile(finalThickness, radius, edgeBeadFactor) {
+  const data = [];
+
+  for (let i = 0; i <= 50; i++) {
+    const r = (radius * i) / 50;
+    const x = r / radius;
+
+    // 간단한 edge bead 모델: 가장자리에서 두께 증가
+    const edgeBead = edgeBeadFactor * Math.exp(-Math.pow((1 - x) / 0.08, 2));
+    const h = finalThickness * (1 + edgeBead);
+
+    data.push({
+      r: Number(r.toFixed(2)),
+      h: Number(h.toFixed(3))
+    });
+  }
+
+  return data;
+}
+
+function uniformity(profile) {
+  const hs = profile.map((p) => p.h);
+  const max = Math.max(...hs);
+  const min = Math.min(...hs);
+  const avg = hs.reduce((a, b) => a + b, 0) / hs.length;
+  return ((max - min) / avg) * 100;
+}
+
+export default function App() {
+  const [params, setParams] = useState({
+    rpm: 3000,
+    mu0: 0.05,
+    h0: 10,
+    evap: 0.03e-6,
+    k: 0.04,
+    radius: 150,
+    edgeBeadFactor: 0.04
+  });
+
+  const simData = useMemo(() => simulate(params), [params]);
+  const finalThickness = simData[simData.length - 1].numerical;
+
+  const profile = useMemo(
+    () => radialProfile(finalThickness, params.radius, params.edgeBeadFactor),
+    [finalThickness, params.radius, params.edgeBeadFactor]
+  );
+
+  const uni = uniformity(profile);
+  const passSpec = uni <= 4; // ±2% = 총 편차 4%
+
+  function update(key, value) {
+    setParams((p) => ({ ...p, [key]: Number(value) }));
+  }
 
   return (
-    <div style={styles.wrapper}>
-      {/* ⬅️ 왼쪽 사이드바 패널 */}
-      <aside style={styles.sidebar}>
-        <div style={styles.sidebarTitle}>🗂️ 공정 매개변수 입력 (Inputs)</div>
-        
-        <div style={styles.sliderGroup}>
-          <label style={styles.label}>회전 속도 ω (RPM)</label>
-          <input type="range" min="1000" max="6000" step="500" value={omega} onChange={(e) => setOmega(Number(e.target.value))} style={styles.slider} />
-          <span style={styles.value}>{omega}</span>
+    <main className="container">
+      <h1>Spin Coating Thin-Film Simulator</h1>
+      <p>
+        Emslie-Bonner-Peck model + evaporation-induced viscosity increase.
+      </p>
+
+      <section className="panel">
+        <h2>Input Parameters</h2>
+
+        <Slider label="Spin speed ω" unit="rpm" min="500" max="6000" step="100"
+          value={params.rpm} onChange={(v) => update("rpm", v)} />
+
+        <Slider label="Initial viscosity η₀" unit="Pa·s" min="0.005" max="0.3" step="0.005"
+          value={params.mu0} onChange={(v) => update("mu0", v)} />
+
+        <Slider label="Initial thickness h₀" unit="μm" min="1" max="50" step="1"
+          value={params.h0} onChange={(v) => update("h0", v)} />
+
+        <Slider label="Evaporation rate E" unit="μm/s" min="0" max="0.2" step="0.005"
+          value={params.evap * 1e6} onChange={(v) => update("evap", v * 1e-6)} />
+
+        <Slider label="Viscosity growth k" unit="1/s" min="0" max="0.2" step="0.005"
+          value={params.k} onChange={(v) => update("k", v)} />
+
+        <Slider label="Wafer radius" unit="mm" min="50" max="200" step="10"
+          value={params.radius} onChange={(v) => update("radius", v)} />
+
+        <Slider label="Edge bead factor" unit="" min="0" max="0.15" step="0.005"
+          value={params.edgeBeadFactor} onChange={(v) => update("edgeBeadFactor", v)} />
+      </section>
+
+      <section className="summary">
+        <div>
+          <strong>Final average thickness</strong>
+          <span>{finalThickness.toFixed(3)} μm</span>
         </div>
-
-        <div style={styles.sliderGroup}>
-          <label style={styles.label}>초기 점도 η₀ (Pa·s)</label>
-          <input type="range" min="0.01" max="0.50" step="0.01" value={eta0} onChange={(e) => setEta0(Number(e.target.value))} style={styles.slider} />
-          <span style={styles.value}>{eta0.toFixed(2)}</span>
+        <div>
+          <strong>Final uniformity</strong>
+          <span>{uni.toFixed(2)}%</span>
         </div>
-
-        <div style={styles.sliderGroup}>
-          <label style={styles.label}>초기 두께 h₀ (㎛)</label>
-          <input type="range" min="10" max="200" step="10" value={h0} onChange={(e) => setH0(Number(e.target.value))} style={styles.slider} />
-          <span style={styles.value}>{h0}</span>
+        <div className={passSpec ? "pass" : "fail"}>
+          <strong>±2% Spec</strong>
+          <span>{passSpec ? "PASS" : "FAIL"}</span>
         </div>
+      </section>
 
-        <div style={styles.sliderGroup}>
-          <label style={styles.label}>솔벤트 증발률 E (㎛/s)</label>
-          <input type="range" min="0.1" max="5.0" step="0.1" value={evapRate} onChange={(e) => setEvapRate(Number(e.target.value))} style={styles.slider} />
-          <span style={styles.value}>{evapRate.toFixed(1)}</span>
-        </div>
+      <section className="panel">
+        <h2>1. Real-time Thickness Evolution</h2>
+        <Chart data={simData} yLabel="Thickness (μm)">
+          <Line type="monotone" dataKey="numerical" name="Numerical Meyerhofer-like model" dot={false} />
+        </Chart>
+      </section>
 
-        <div style={styles.sliderGroup}>
-          <label style={styles.label}>웨이퍼 반지름 R (mm)</label>
-          <input type="range" min="50" max="150" step="25" value={waferRadius} onChange={(e) => setWaferRadius(Number(e.target.value))} style={styles.slider} />
-          <span style={styles.value}>{waferRadius}</span>
-        </div>
-      </aside>
+      <section className="panel">
+        <h2>2. Validation View: Numerical vs Analytical EBP</h2>
+        <p>
+          Validation condition: analytical EBP assumes no evaporation and constant viscosity.
+        </p>
+        <Chart data={simData} yLabel="Thickness (μm)">
+          <Line type="monotone" dataKey="numerical" name="Numerical" dot={false} />
+          <Line type="monotone" dataKey="ebp" name="EBP analytical limit" dot={false} />
+        </Chart>
+      </section>
 
-      {/* ➡️ 오른쪽 메인 콘텐츠 대시보드 */}
-      <main style={styles.main}>
-        <h1 style={styles.title}>Reconstructing the Emslie-Bonner-Peck Theory & Meyerhofer Model</h1>
-        <p style={styles.subtitle}>Semiconductor Track Unit Operation Simulator</p>
+      <section className="panel">
+        <h2>3. Design Exploration: Radial Uniformity & Edge Bead</h2>
+        <Chart data={profile} xKey="r" yLabel="Final h(r) (μm)">
+          <Line type="monotone" dataKey="h" name="Radial thickness" dot={false} />
+        </Chart>
+      </section>
+    </main>
+  );
+}
 
-        {/* 상단 3개 탭 링크 */}
-        <div style={styles.tabBar}>
-          <button onClick={() => setActiveTab('interactive')} style={styles.tabButton(activeTab === 'interactive')}>📊 Core Interactive View</button>
-          <button onClick={() => setActiveTab('validation')} style={styles.tabButton(activeTab === 'validation')}>📉 Analytical Validation</button>
-          <button onClick={() => alert("챌린지 조건 스캔 완료!")} style={styles.tabButton(false)}>🚀 Challenge Mode</button>
-        </div>
+function Slider({ label, unit, min, max, step, value, onChange }) {
+  return (
+    <label className="slider">
+      <span>{label}: <b>{Number(value).toFixed(3)}</b> {unit}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
+  );
+}
 
-        {activeTab === 'interactive' ? (
-          <div>
-            <h2 style={styles.sectionTitle}>1️⃣ 실시간 박막 형성 대시보드</h2>
-            
-            <div style={{...styles.metricBox, marginBottom: '20px', borderLeft: '4px solid #ff4b4b'}}>
-              <div style={styles.metricLabel}>🧪 겔화 도달 시간 예측값 (t_gel)</div>
-              <div style={{...styles.metricValue, fontSize: '32px'}}>{simulationResults.tGel.toFixed(2)} 초</div>
-            </div>
-
-            {/* 3단 분할 메트릭 디스플레이 */}
-            <div style={styles.metricGroup}>
-              <div style={styles.metricBox}>
-                <div style={styles.metricLabel}>중심부 최종 두께</div>
-                <div style={styles.metricValue}>{simulationResults.finalRow.center.toFixed(3)} ㎛</div>
-              </div>
-              <div style={styles.metricBox}>
-                <div style={styles.metricLabel}>가장자리 최종 두께 (Edge Bead)</div>
-                <div style={styles.metricValue}>{simulationResults.finalRow.edge.toFixed(3)} ㎛</div>
-              </div>
-              <div style={styles.metricBox}>
-                <div style={styles.metricLabel}>반지름방향 불균일도 (Uniformity Specs)</div>
-                <div style={{...styles.metricValue, color: '#ff4b4b'}}>±{simulationResults.uniformity.toFixed(2)}%</div>
-              </div>
-            </div>
-
-            <h3 style={styles.sectionTitle}>📷 위치별/시간별 두께 변화 그래프 (에지 비드 시각화)</h3>
-            <div style={styles.chartContainer}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={simulationResults.chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#262730" />
-                  <XAxis dataKey="time" stroke="#808495" />
-                  <YAxis stroke="#808495" domain={[0, 850]} />
-                  <Tooltip contentStyle={{ backgroundColor: '#131720', borderColor: '#262730', color: '#fafafa' }} />
-                  <Legend />
-                  <Line type="monotone" dataKey="center" stroke="#29b6f6" name="Center (r = 0)" dot={false} strokeWidth={3} />
-                  <Line type="monotone" dataKey="mid" stroke="#ab47bc" name="Mid-radius" dot={false} strokeWidth={2} strokeDasharray="5 5" />
-                  <Line type="monotone" dataKey="edge" stroke="#ff4b4b" name="Edge (Edge Bead)" dot={false} strokeWidth={3} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+function Chart({ data, children, xKey = "t", yLabel }) {
+  return (
+    <div className="chart">
+      <ResponsiveContainer width="100%" height={320}>
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            dataKey={xKey}
+            label={{
+              value: xKey === "t" ? "Time (s)" : "Radius (mm)",
+              position: "insideBottom",
+              offset: -5
+            }}
+          />
+          <YAxis
+            label={{
+              value: yLabel,
+              angle: -90,
+              position: "insideLeft"
+            }}
+          />
+          <Tooltip />
+          <Legend />
+          {children}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
