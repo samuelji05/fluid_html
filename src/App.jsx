@@ -42,8 +42,9 @@ function simulate(p) {
   const data = [];
 
   for (let t = 0; t <= totalTime; t += dt) {
-    const edge = h * (1 + p.edgeBead * 18);
-    const mid = h * (1 + p.edgeBead * 4);
+    const edgeBead =  0.04 *  (4000 / p.rpm) *  (1 + 2 * p.mu0) *  (1 + 3 * p.evap);
+    const edge = h * (1 + edgeBead);
+    const mid = h * (1 + 0.25 * edgeBead);
 
     data.push({
       t: Number(t.toFixed(1)),
@@ -66,8 +67,12 @@ function radialProfile(finalCenter, p) {
   for (let i = 0; i <= 100; i++) {
     const r = (p.radius * i) / 100;
     const x = r / p.radius;
-    const bead = p.edgeBead * 18 * Math.exp(-Math.pow((1 - x) / 0.09, 2));
-    const slope = 0.04 * x ** 2;
+
+    const edgeBead = 0.04 * (4000 / p.rpm) * (1 + 2 * p.mu0) * (1 + 3 * p.evap);
+
+    const bead = edgeBead * Math.exp(-Math.pow((1 - x) / 0.09, 2));
+    const slope = 0.015 * x ** 2;
+
     const h = finalCenter * (1 + slope + bead);
 
     data.push({
@@ -127,8 +132,7 @@ export default function App() {
     h0: 10,
     evap: 0.03,
     k: 0.04,
-    radius: 150,
-    edgeBead: 0.04
+    radius: 150
   });
 
   const data = useMemo(() => simulate(p), [p]);
@@ -170,9 +174,6 @@ export default function App() {
 
         <Slider title="웨이퍼 반지름 R" unit="mm" min="50" max="200" step="5"
           value={p.radius} onChange={(v) => update("radius", v)} />
-
-        <Slider title="Edge Bead Factor" unit="" min="0" max="0.15" step="0.005"
-          value={p.edgeBead} onChange={(v) => update("edgeBead", v)} />
       </aside>
 
       <main className="main">
