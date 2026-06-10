@@ -66,7 +66,7 @@ function radialProfile(finalCenter, p) {
   for (let i = 0; i <= 100; i++) {
     const r = (p.radius * i) / 100;
     const x = r / p.radius;
-    const bead = p.edgeBead * 18 * Math.exp(-((1 - x) / 0.09) ** 2);
+    const bead = p.edgeBead * 18 * Math.exp(-Math.pow((1 - x) / 0.09, 2));
     const slope = 0.04 * x ** 2;
     const h = finalCenter * (1 + slope + bead);
 
