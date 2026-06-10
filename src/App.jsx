@@ -36,7 +36,7 @@ function ebp(t, h0, rpm, mu0) {
 
 function simulate(p) {
   const dt = 0.1;
-  const totalTime = 40;
+  const totalTime = 60;
   let h = p.h0 * 1e-6;
   const h0 = h;
   const data = [];
@@ -128,13 +128,12 @@ export default function App() {
 
   const [p, setP] = useState({
     rpm: 3000,
-    mu0: 0.05,
-    h0: 10,
+    mu0: 0.25,
+    h0: 50,
     evap: 0.03,
     k: 0.04,
-    radius: 150
+    radius: 150,
   });
-
   const data = useMemo(() => simulate(p), [p]);
   const last = data[data.length - 1];
   const profile = useMemo(() => radialProfile(last.center, p), [last.center, p]);
@@ -143,10 +142,15 @@ export default function App() {
 
   const challenge = useMemo(() => findChallengeSolution(p), [p]);
 
-  const tGel = Math.min(
-    40,
-    (1 / Math.max(p.k, 0.001)) * Math.log(0.25 / p.mu0)
-  );
+  const gelViscosity = Math.max(0.8, 4 * p.mu0);
+
+  const tGel =
+    p.mu0 >= gelViscosity
+     ? 0
+     :Math.min(
+        60,
+        (1 / Math.max(p.k, 0.001)) * Math.log(gelViscosity / p.mu0)
+      );
 
   function update(key, value) {
     setP((old) => ({ ...old, [key]: Number(value) }));
@@ -160,11 +164,11 @@ export default function App() {
         <Slider title="회전 속도 ω" unit="RPM" min="500" max="6000" step="100"
           value={p.rpm} onChange={(v) => update("rpm", v)} />
 
-        <Slider title="초기 점도 η₀" unit="Pa·s" min="0.005" max="0.3" step="0.005"
-          value={p.mu0} onChange={(v) => update("mu0", v)} />
+        <Slider title="초기 점도 η₀" unit="Pa·s"  min="0.01"  max="0.5"  step="0.01"
+          value={p.mu0}  onChange={(v) => update("mu0", v)} />
 
-        <Slider title="초기 두께 h₀" unit="μm" min="1" max="50" step="1"
-          value={p.h0} onChange={(v) => update("h0", v)} />
+        <Slider title="초기 두께 h₀" unit="μm"  min="10"  max="100"  step="5"
+          value={p.h0}  onChange={(v) => update("h0", v)} />
 
         <Slider title="증발률 E" unit="μm/s" min="0" max="0.2" step="0.005"
           value={p.evap} onChange={(v) => update("evap", v)} />
